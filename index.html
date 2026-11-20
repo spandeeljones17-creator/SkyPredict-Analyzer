@@ -1,0 +1,126 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkyPredict Analyzer</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#0b1220;color:white;
+ font-family:Arial,sans-serif;padding:20px
+}
+.container{max-width:500px;margin:auto}
+h1{color:#38bdf8;text-align:center}
+.card{
+ background:#172338;padding:18px;
+ border-radius:14px;margin:15px 0
+}
+input,button{
+ width:100%;padding:14px;margin-top:10px;
+ border:0;border-radius:9px;font-size:16px
+}
+input{background:#26364f;color:white}
+button{background:#0ea5e9;color:white;font-weight:bold}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#26364f;padding:15px;border-radius:10px}
+.stat strong{display:block;color:#38bdf8;font-size:22px;margin-top:8px}
+.history{display:flex;flex-wrap:wrap;gap:8px}
+.round{background:#26364f;padding:10px;border-radius:8px}
+.low{color:#f87171}
+.medium{color:#facc15}
+.high{color:#4ade80}
+small{color:#aab8cc}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>✈ SkyPredict</h1>
+<p style="text-align:center">Aviator Results Analyzer</p>
+
+<div class="card">
+<h3>Enter round multiplier</h3>
+<input id="multiplier" type="number" min="1" step="0.01" placeholder="Example: 2.45">
+<button onclick="addRound()">ADD RESULT</button>
+</div>
+
+<div class="card">
+<h3>Statistics</h3>
+<div class="stats">
+<div class="stat">Rounds<strong id="total">0</strong></div>
+<div class="stat">Average<strong id="average">0.00x</strong></div>
+<div class="stat">Below 2x<strong id="low">0</strong></div>
+<div class="stat">2x or above<strong id="high">0</strong></div>
+</div>
+</div>
+
+<div class="card">
+<h3>Historical analysis</h3>
+<p id="analysis">Enter results to begin analysis.</p>
+<small>Historical statistics do not predict the next round.</small>
+</div>
+
+<div class="card">
+<h3>Round history</h3>
+<div id="history" class="history">No results yet.</div>
+<button onclick="clearHistory()" style="background:#dc2626">CLEAR HISTORY</button>
+</div>
+</div>
+
+<script>
+let rounds=JSON.parse(localStorage.getItem("skyRounds")||"[]");
+
+function addRound(){
+ const field=document.getElementById("multiplier");
+ const value=Number(field.value);
+ if(!Number.isFinite(value)||value<1){
+ alert("Enter a valid multiplier of 1 or higher.");
+ return;
+ }
+ rounds.unshift(value);
+ rounds=rounds.slice(0,200);
+ localStorage.setItem("skyRounds",JSON.stringify(rounds));
+ field.value="";
+ update();
+}
+
+function update(){
+ const total=rounds.length;
+ const low=rounds.filter(x=>x<2).length;
+ const high=total-low;
+ const avg=total?rounds.reduce((a,b)=>a+b,0)/total:0;
+
+ document.getElementById("total").textContent=total;
+ document.getElementById("average").textContent=avg.toFixed(2)+"x";
+ document.getElementById("low").textContent=low;
+ document.getElementById("high").textContent=high;
+
+ const analysis=document.getElementById("analysis");
+ if(!total){
+ analysis.textContent="Enter results to begin analysis.";
+ }else{
+ analysis.textContent=
+ "Recorded "+total+" rounds. "+
+ (low/total*100).toFixed(1)+"% were below 2x. "+
+ "Average multiplier: "+avg.toFixed(2)+"x.";
+ }
+
+ document.getElementById("history").innerHTML=
+ rounds.length?rounds.map(x=>
+ '<span class="round">'+x.toFixed(2)+'x</span>'
+ ).join(""):"No results yet.";
+}
+
+function clearHistory(){
+ if(confirm("Delete all recorded results?")){
+ rounds=[];
+ localStorage.removeItem("skyRounds");
+ update();
+ }
+}
+
+update();
+</script>
+</body>
+</html>
