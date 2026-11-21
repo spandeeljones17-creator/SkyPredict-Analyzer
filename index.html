@@ -1,0 +1,460 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkyPredict Analyzer PRO</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#090909;color:white;
+ font-family:Arial,sans-serif;padding:16px
+}
+header{text-align:center;padding:20px 5px}
+h1{color:#ff3030;margin:0;font-size:27px}
+header p{color:#aaa;font-size:13px}
+.card{
+ background:#171717;border:1px solid #333;
+ border-radius:14px;padding:17px;margin-bottom:15px
+}
+h2{font-size:17px;color:#ff4545;margin-top:0}
+input{
+ width:100%;padding:15px;background:#080808;
+ color:white;border:1px solid #555;
+ border-radius:9px;font-size:17px;margin:8px 0
+}
+button{
+ width:100%;padding:14px;margin-top:10px;
+ border:0;border-radius:9px;
+ background:#ed2525;color:white;
+ font-size:15px;font-weight:bold
+}
+button.secondary{background:#333}
+.stats{
+ display:grid;grid-template-columns:1fr 1fr;gap:10px
+}
+.stat{
+ background:#101010;padding:14px;border-radius:10px;
+ text-align:center
+}
+.stat strong{display:block;color:#ff4444;font-size:23px}
+.stat span{color:#aaa;font-size:12px}
+#history{padding:0;list-style:none}
+#history li{
+ padding:11px;border-bottom:1px solid #333;
+ display:flex;justify-content:space-between
+}
+.good{color:#4bd98a}
+.bad{color:#ff5555}
+canvas{width:100%;height:180px}
+small{color:#999;line-height:1.5}
+footer{text-align:center;color:#888;font-size:11px;padding:15px}
+</style>
+</head>
+<body>
+
+<header>
+<h1>✈ SKYPREDICT PRO</h1>
+<p>AVIATOR STATISTICS ANALYZER</p>
+</header>
+
+<div class="card">
+<h2>ENTER PREVIOUS RESULT</h2>
+<input id="multiplier" type="number"
+placeholder="Example: 2.50" min="1" step="0.01">
+<button onclick="addResult()">ADD RESULT</button>
+<button class="secondary" onclick="analyze()">ANALYZE RESULTS</button>
+</div>
+
+<div class="card">
+<h2>STATISTICS DASHBOARD</h2>
+<div class="stats">
+<div class="stat"><strong id="total">0</strong><span>Total results</span></div>
+<div class="stat"><strong id="average">0.00x</strong><span>Average multiplier</span></div>
+<div class="stat"><strong id="high">0</strong><span>Results 2x or higher</span></div>
+<div class="stat"><strong id="low">0</strong><span>Results below 2x</span></div>
+<div class="stat"><strong id="highest">0.00x</strong><span>Highest result</span></div>
+<div class="stat"><strong id="lowest">0.00x</strong><span>Lowest result</span></div>
+</div>
+</div>
+
+<div class="card">
+<h2>ANALYSIS REPORT</h2>
+<p id="report">Enter previous results to begin analysis.</p>
+</div>
+
+<div class="card">
+<h2>RESULTS CHART</h2>
+<canvas id="chart" width="600" height="180"></canvas>
+</div>
+
+<div class="card">
+<h2>RESULTS HISTORY</h2>
+<ul id="history"></ul>
+<button class="secondary" onclick="clearHistory()">CLEAR HISTORY</button>
+</div>
+
+<footer>
+SkyPredict Analyzer PRO<br>
+Historical statistics only. No guaranteed predictions.
+</footer>
+
+<script>
+let results=[];
+try {
+ results=JSON.parse(localStorage.getItem("skyResults")||"[]");
+ if(!Array.isArray(results)) results=[];
+} catch(e) { results=[]; }
+
+function save(){
+ localStorage.setItem("skyResults",JSON.stringify(results));
+}
+
+function addResult(){
+ const input=document.getElementById("multiplier");
+ const value=Number(input.value);
+
+ if(!input.value || !Number.isFinite(value) || value<1){
+  alert("Enter a valid multiplier of 1.00 or higher.");
+  return;
+ }
+
+ results.push(Number(value.toFixed(2)));
+ save();
+ input.value="";
+ update();
+}
+
+function analyze(){
+ if(results.length===0){
+  document.getElementById("report").textContent=
+  "Please enter some previous results first.";
+  return;
+ }
+
+ const total=results.length;
+ const average=results.reduce((a,b)=>a+b,0)/total;
+ const high=results.filter(x=>x>=2).length;
+ const low=total-high;
+ const sorted=[...results].sort((a,b)=>a-b);
+ const median=total%2
+  ? sorted[Math.floor(total/2)]
+  : (sorted[total/2-1]+sorted[total/2])/2;
+
+ document.getElementById("report").textContent=
+ "Analyzed "+total+" previous rounds. "+
+ "Average: "+average.toFixed(2)+"x. "+
+ "Median: "+median.toFixed(2)+"x. "+
+ "High results: "+high+" ("+(high/total*100).toFixed(1)+"%). "+
+ "Low results: "+low+" ("+(low/total*100).toFixed(1)+"%). "+
+ "These statistics describe past results only.";
+}
+
+function update(){
+ const total=results.length;
+ const average=total
+  ? results.reduce((a,b)=>a+b,0)/total:0;
+
+ document.getElementById("total").textContent=total;
+ document.getElementById("average").textContent=average.toFixed(2)+"x";
+ document.getElementById("high").textContent=
+ results.filter(x=>x>=2).length;
+ document.getElementById("low").textContent=
+ results.filter(x=>x<2).length;
+ document.getElementById("highest").textContent=
+ total?Math.max(...results).toFixed(2)+"x":"0.00x";
+ document.getElementById("lowest").textContent=
+ total?Math.min(...results).toFixed(2)+"x":"0.00x";
+
+ const history=document.getElementById("history");
+ history.replaceChildren();
+
+ results.slice().reverse().forEach((value,index)=>{
+  const li=document.createElement("li");
+  const label=document.createElement("span");
+  const amount=document.createElement("strong");
+  label.textContent="Round "+(total-index);
+  amount.textContent=value.toFixed(2)+"x";
+  amount.className=value>=2?"good":"bad";
+  li.append(label,amount);
+  history.appendChild(li);
+ });
+
+ drawChart();
+ analyze();
+}
+
+function drawChart(){
+ const canvas=document.getElementById("chart");
+ const ctx=canvas.getContext("2d");
+ const w=canvas.width,h=canvas.height;
+ ctx.clearRect(0,0,w,h);
+
+ if(!results.length){
+  ctx.fillStyle="#999";
+  ctx.font="18px Arial";
+  ctx.fillText("No results yet",220,90);
+  return;
+ }
+
+ const data=results.slice(-25);
+ const max=Math.max(5,...data);
+ const step=w/data.length;
+
+ ctx.strokeStyle="#444";
+ ctx.beginPath();
+ ctx.moveTo(0,h-20);
+ ctx.lineTo(w,h-20);
+ ctx.stroke();
+
+ data.forEach((value,i)=>{
+  const barHeight=(value/max)*(h-35);
+  const x=i*step+3;
+  const y=h-20-barHeight;
+  ctx.fillStyle=value>=2?"#ed3333":"#777";
+  ctx.fillRect(x,y,Math.max(3,step-6),barHeight);
+ });
+}
+
+function clearHistory(){
+ if(!confirm("Delete all saved results?")) return;
+ results=[];
+ save();
+ update();
+}
+
+update();
+</script>
+</body>
+  </html>
+  
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkyPredict Analyzer PRO</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#090909;color:white;
+ font-family:Arial,sans-serif;padding:16px
+}
+header{text-align:center;padding:20px 5px}
+h1{color:#ff3030;margin:0;font-size:27px}
+header p{color:#aaa;font-size:13px}
+.card{
+ background:#171717;border:1px solid #333;
+ border-radius:14px;padding:17px;margin-bottom:15px
+}
+h2{font-size:17px;color:#ff4545;margin-top:0}
+input{
+ width:100%;padding:15px;background:#080808;
+ color:white;border:1px solid #555;
+ border-radius:9px;font-size:17px;margin:8px 0
+}
+button{
+ width:100%;padding:14px;margin-top:10px;
+ border:0;border-radius:9px;
+ background:#ed2525;color:white;
+ font-size:15px;font-weight:bold
+}
+button.secondary{background:#333}
+.stats{
+ display:grid;grid-template-columns:1fr 1fr;gap:10px
+}
+.stat{
+ background:#101010;padding:14px;border-radius:10px;
+ text-align:center
+}
+.stat strong{display:block;color:#ff4444;font-size:23px}
+.stat span{color:#aaa;font-size:12px}
+#history{padding:0;list-style:none}
+#history li{
+ padding:11px;border-bottom:1px solid #333;
+ display:flex;justify-content:space-between
+}
+.good{color:#4bd98a}
+.bad{color:#ff5555}
+canvas{width:100%;height:180px}
+small{color:#999;line-height:1.5}
+footer{text-align:center;color:#888;font-size:11px;padding:15px}
+</style>
+</head>
+<body>
+
+<header>
+<h1>✈ SKYPREDICT PRO</h1>
+<p>AVIATOR STATISTICS ANALYZER</p>
+</header>
+
+<div class="card">
+<h2>ENTER PREVIOUS RESULT</h2>
+<input id="multiplier" type="number"
+placeholder="Example: 2.50" min="1" step="0.01">
+<button onclick="addResult()">ADD RESULT</button>
+<button class="secondary" onclick="analyze()">ANALYZE RESULTS</button>
+</div>
+
+<div class="card">
+<h2>STATISTICS DASHBOARD</h2>
+<div class="stats">
+<div class="stat"><strong id="total">0</strong><span>Total results</span></div>
+<div class="stat"><strong id="average">0.00x</strong><span>Average multiplier</span></div>
+<div class="stat"><strong id="high">0</strong><span>Results 2x or higher</span></div>
+<div class="stat"><strong id="low">0</strong><span>Results below 2x</span></div>
+<div class="stat"><strong id="highest">0.00x</strong><span>Highest result</span></div>
+<div class="stat"><strong id="lowest">0.00x</strong><span>Lowest result</span></div>
+</div>
+</div>
+
+<div class="card">
+<h2>ANALYSIS REPORT</h2>
+<p id="report">Enter previous results to begin analysis.</p>
+</div>
+
+<div class="card">
+<h2>RESULTS CHART</h2>
+<canvas id="chart" width="600" height="180"></canvas>
+</div>
+
+<div class="card">
+<h2>RESULTS HISTORY</h2>
+<ul id="history"></ul>
+<button class="secondary" onclick="clearHistory()">CLEAR HISTORY</button>
+</div>
+
+<footer>
+SkyPredict Analyzer PRO<br>
+Historical statistics only. No guaranteed predictions.
+</footer>
+
+<script>
+let results=[];
+try {
+ results=JSON.parse(localStorage.getItem("skyResults")||"[]");
+ if(!Array.isArray(results)) results=[];
+} catch(e) { results=[]; }
+
+function save(){
+ localStorage.setItem("skyResults",JSON.stringify(results));
+}
+
+function addResult(){
+ const input=document.getElementById("multiplier");
+ const value=Number(input.value);
+
+ if(!input.value || !Number.isFinite(value) || value<1){
+  alert("Enter a valid multiplier of 1.00 or higher.");
+  return;
+ }
+
+ results.push(Number(value.toFixed(2)));
+ save();
+ input.value="";
+ update();
+}
+
+function analyze(){
+ if(results.length===0){
+  document.getElementById("report").textContent=
+  "Please enter some previous results first.";
+  return;
+ }
+
+ const total=results.length;
+ const average=results.reduce((a,b)=>a+b,0)/total;
+ const high=results.filter(x=>x>=2).length;
+ const low=total-high;
+ const sorted=[...results].sort((a,b)=>a-b);
+ const median=total%2
+  ? sorted[Math.floor(total/2)]
+  : (sorted[total/2-1]+sorted[total/2])/2;
+
+ document.getElementById("report").textContent=
+ "Analyzed "+total+" previous rounds. "+
+ "Average: "+average.toFixed(2)+"x. "+
+ "Median: "+median.toFixed(2)+"x. "+
+ "High results: "+high+" ("+(high/total*100).toFixed(1)+"%). "+
+ "Low results: "+low+" ("+(low/total*100).toFixed(1)+"%). "+
+ "These statistics describe past results only.";
+}
+
+function update(){
+ const total=results.length;
+ const average=total
+  ? results.reduce((a,b)=>a+b,0)/total:0;
+
+ document.getElementById("total").textContent=total;
+ document.getElementById("average").textContent=average.toFixed(2)+"x";
+ document.getElementById("high").textContent=
+ results.filter(x=>x>=2).length;
+ document.getElementById("low").textContent=
+ results.filter(x=>x<2).length;
+ document.getElementById("highest").textContent=
+ total?Math.max(...results).toFixed(2)+"x":"0.00x";
+ document.getElementById("lowest").textContent=
+ total?Math.min(...results).toFixed(2)+"x":"0.00x";
+
+ const history=document.getElementById("history");
+ history.replaceChildren();
+
+ results.slice().reverse().forEach((value,index)=>{
+  const li=document.createElement("li");
+  const label=document.createElement("span");
+  const amount=document.createElement("strong");
+  label.textContent="Round "+(total-index);
+  amount.textContent=value.toFixed(2)+"x";
+  amount.className=value>=2?"good":"bad";
+  li.append(label,amount);
+  history.appendChild(li);
+ });
+
+ drawChart();
+ analyze();
+}
+
+function drawChart(){
+ const canvas=document.getElementById("chart");
+ const ctx=canvas.getContext("2d");
+ const w=canvas.width,h=canvas.height;
+ ctx.clearRect(0,0,w,h);
+
+ if(!results.length){
+  ctx.fillStyle="#999";
+  ctx.font="18px Arial";
+  ctx.fillText("No results yet",220,90);
+  return;
+ }
+
+ const data=results.slice(-25);
+ const max=Math.max(5,...data);
+ const step=w/data.length;
+
+ ctx.strokeStyle="#444";
+ ctx.beginPath();
+ ctx.moveTo(0,h-20);
+ ctx.lineTo(w,h-20);
+ ctx.stroke();
+
+ data.forEach((value,i)=>{
+  const barHeight=(value/max)*(h-35);
+  const x=i*step+3;
+  const y=h-20-barHeight;
+  ctx.fillStyle=value>=2?"#ed3333":"#777";
+  ctx.fillRect(x,y,Math.max(3,step-6),barHeight);
+ });
+}
+
+function clearHistory(){
+ if(!confirm("Delete all saved results?")) return;
+ results=[];
+ save();
+ update();
+}
+
+update();
+</script>
+</body>
+</html>
